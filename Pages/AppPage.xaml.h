@@ -58,6 +58,9 @@ namespace moonlight_xbox_dx
 		void HideClosingScreen();
 		Windows::UI::Xaml::Controls::Control^ ShelfFocusTarget();
 		void ShowShelfLoading(bool show);
+		void FocusShelfOnArrival();
+		void ShowReconnecting(bool show);
+		int m_returnAppId = -1;
 		void StartShelfPulse();
 		void StopShelfPulse();
 		void UpdateHeroMetadata();

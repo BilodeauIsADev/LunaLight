@@ -91,11 +91,10 @@
             <TextBlock Margin="0,16,0,16" FontSize="32">Support</TextBlock>
             <TextBlock Margin="0,0,0,16">Need some Help?</TextBlock>
             <StackPanel Margin="16" Orientation="Horizontal" Grid.Row="1" Grid.Column="1">
-                <Image Source="ms-appx:///Assets/qrSupport.svg" Width="128" Height="128"></Image>
                 <StackPanel Orientation="Vertical" Margin="16,16,0,16">
                     <TextBlock FontSize="24">GitHub</TextBlock>
-                    <TextBlock>Check the Wiki for Support Links, documentation and more!</TextBlock>
-                    <HyperlinkButton>https://github.com/TheElixZammuto/moonlight-xbox/wiki</HyperlinkButton>
+                    <TextBlock>Report problems and find new builds on the project page.</TextBlock>
+                    <HyperlinkButton NavigateUri="https://github.com/BilodeauIsADev/LunaLight">https://github.com/BilodeauIsADev/LunaLight</HyperlinkButton>
                 </StackPanel>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">

@@ -3,11 +3,57 @@
 // Pure helpers for the stream page's failure and end-of-session screens.
 // Header-only so tests can compile them without the UWP project.
 
+#include <climits>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 
 namespace moonlight_xbox_dx {
 namespace OrbitStreamUi {
+
+	// Bitrate slider stops: fine where most streams sit, coarse near the maximum.
+	const int MaxBitrateStep = 47;
+
+	inline int BitrateForStep(int step) {
+		int kbps = 5000;
+		for (int i = 0; i < step && i < MaxBitrateStep; ++i) {
+			kbps += kbps < 100000 ? 5000 : kbps < 200000 ? 10000 : kbps < 500000 ? 25000 : 50000;
+		}
+		return kbps;
+	}
+
+	// The stop to show for a bitrate, which may lie between stops: codec defaults do.
+	inline int NearestBitrateStep(int kbps) {
+		int best = 0;
+		int bestDistance = INT_MAX;
+		for (int step = 0; step <= MaxBitrateStep; ++step) {
+			const int distance = std::abs(BitrateForStep(step) - kbps);
+			if (distance < bestDistance) {
+				best = step;
+				bestDistance = distance;
+			}
+		}
+		return best;
+	}
+
+	struct StreamPreset {
+		int maxHeight;
+		int fps;
+		bool immediatePacing;
+		const wchar_t* audioBuffer;
+	};
+
+	// In list order: 0 = Best quality, 1 = Balanced, 2 = Low latency.
+	inline StreamPreset GetStreamPreset(int preset, int displayHeight, bool supports120Hz, bool xboxOne) {
+		const bool lowLatency = preset == 2;
+		StreamPreset result;
+		result.maxHeight = preset == 0 || displayHeight < 1080 ? displayHeight : 1080;
+		result.fps = lowLatency && supports120Hz ? 120 : 60;
+		// Matches the frame pacing advice in the settings: Display-locked suits Xbox One
+		result.immediatePacing = lowLatency || !xboxOne;
+		result.audioBuffer = lowLatency ? L"20 ms" : L"30 ms";
+		return result;
+	}
 
 	// Error codes passed to MoonlightClient::OnFailed, mirrored from
 	// moonlight-common-c (Limelight.h), libgamestream (errors.h) and the

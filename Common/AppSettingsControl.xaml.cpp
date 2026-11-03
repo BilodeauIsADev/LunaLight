@@ -27,7 +27,7 @@ AppSettingsControl::AppSettingsControl() : m_calibrationFrame(nullptr)
 	for (int i = 0; i < state->SavedHosts->Size;i++) {
 		auto host = state->SavedHosts->GetAt(i);
 		auto item = ref new ComboBoxItem();
-		item->Content = host->LastHostname;
+		item->Content = host->ComputerName != nullptr && !host->ComputerName->IsEmpty() ? host->ComputerName : host->LastHostname;
 		item->DataContext = host->InstanceId;
 		HostSelector->Items->Append(item);
 		if (host->InstanceId->Equals(iid)) {
@@ -87,6 +87,7 @@ void AppSettingsControl::HookCards() {
 	this->GotFocus += ref new RoutedEventHandler([weakThis](Platform::Object^, RoutedEventArgs^ e) {
 		auto page = weakThis.Resolve<AppSettingsControl>();
 		if (page == nullptr || OrbitInput::HasOpenPopup()) return;
+		OrbitInput::RememberSectionRow(e->OriginalSource);
 		auto calibration = page->m_calibrationFrame.Resolve<FrameworkElement>();
 		if (calibration != nullptr && page->m_section == -1) {
 			bool display = false;

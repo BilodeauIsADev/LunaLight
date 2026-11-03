@@ -208,7 +208,7 @@
                             <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="Keyboard layout"/>
                         </StackPanel>
                         <Grid Grid.Column="1" VerticalAlignment="Center">
-                            <ComboBox x:Name="KeyboardLayoutSelector" SelectionChanged="LayoutSelector_SelectionChanged" AutomationProperties.Name="Keyboard layout"/>
+                            <ComboBox x:Name="KeyboardLayoutSelector" IsEnabled="{x:Bind State.EnableKeyboard,Mode=OneWay}" SelectionChanged="LayoutSelector_SelectionChanged" AutomationProperties.Name="Keyboard layout"/>
                         </Grid>
                     </Grid>
                 </Border>

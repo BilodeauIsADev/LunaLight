@@ -54,10 +54,14 @@ void MoonlightSettings::OnBackRequested(Platform::Object^ e, Windows::UI::Core::
 	// UWP on Xbox One triggers a back request whenever the B
 	// button is pressed which can result in the app being
 	// suspended if unhandled
+	args->Handled = true;
+	// B steps out of the options to the section list before leaving the page
+	if (m_activeSection != nullptr && OrbitInput::HasFocusIn(AppSettings)) {
+		m_activeSection->Focus(Windows::UI::Xaml::FocusState::Keyboard);
+		return;
+	}
 	GetApplicationState()->UpdateFile();
 	this->Frame->GoBack();
-	args->Handled = true;
-
 }
 
 void MoonlightSettings::OnLoaded(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
@@ -92,6 +96,14 @@ void MoonlightSettings::SectionButton_GotFocus(Platform::Object^ sender, Windows
 	}
 }
 
+// A on a section opens its options, as the Select hint promises
+void MoonlightSettings::SectionButton_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+	SectionButton_GotFocus(sender, e);
+	auto target = dynamic_cast<Control^>(safe_cast<Button^>(sender)->XYFocusRight);
+	if (target != nullptr) target->Focus(Windows::UI::Xaml::FocusState::Keyboard);
+}
+
 void MoonlightSettings::OnUnloaded(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
 {
 	auto navigation = Windows::UI::Core::SystemNavigationManager::GetForCurrentView();
@@ -101,4 +113,5 @@ void MoonlightSettings::OnUnloaded(Platform::Object^ sender, Windows::UI::Xaml::
 void MoonlightSettings::Page_PreviewKeyDown(Platform::Object^ sender, Windows::UI::Xaml::Input::KeyRoutedEventArgs^ e) {
 	if (OrbitInput::HandleBumpers(e, 2, backButton, nullptr, settingsNavButton)) return;
 	if (OrbitInput::HandleTabBarVertical(e, { backButton, settingsNavButton }, [this]() -> Windows::UI::Xaml::Controls::Control^ { return m_activeSection; })) return;
+	if (OrbitInput::HandleListVertical(e, AppSettings)) return;
 }

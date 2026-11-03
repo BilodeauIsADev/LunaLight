@@ -109,6 +109,7 @@ void Section(const wchar_t* button, const wchar_t* panel) {
 void Dropdown(const wchar_t* name) {
 	Action((std::wstring(L"Open ") + name).c_str(), [name]() {
 		auto combo = Named<ComboBox>(ref new String(name));
+		combo->IsEnabled = true; // the keyboard layout is dimmed while the keyboard is off
 		combo->Focus(FocusState::Keyboard);
 		combo->IsDropDownOpen = true;
 	});

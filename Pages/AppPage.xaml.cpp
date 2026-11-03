@@ -83,6 +83,8 @@ void AppPage::OnNavigatedTo(Windows::UI::Xaml::Navigation::NavigationEventArgs^ 
 	MoonlightHost^ mhost = dynamic_cast<MoonlightHost^>(e->Parameter);
 	if (mhost == nullptr) return;
 	host = mhost;
+	// Coming back (settings, a stream) returns to the same game; a new arrival starts at the first
+	m_returnAppId = e->NavigationMode == Windows::UI::Xaml::Navigation::NavigationMode::Back ? host->LastSelectedAppId : -1;
 
 	// Keep the hero pointed at a real app while the list is (re)filled
 	auto observableApps = dynamic_cast<IObservableVector<MoonlightApp^>^>(host->Apps);
@@ -158,6 +160,7 @@ void AppPage::OnNavigatedTo(Windows::UI::Xaml::Navigation::NavigationEventArgs^ 
 				inner->Connect(inner->host->AutostartID);
 				return;
 			}
+			if (!forSignIn) inner->FocusShelfOnArrival();
 			inner->StartAppPolling();
 		}));
 	});
@@ -167,6 +170,7 @@ void AppPage::StartAppPolling() {
 	// Start background polling for app running state and connectivity
 	Platform::WeakReference weakThis(this);
 	create_task([weakThis]() {
+		int missedPolls = 0;
 		while (true) {
 			auto that = weakThis.Resolve<AppPage>();
 			if (that == nullptr) break;
@@ -174,7 +178,13 @@ void AppPage::StartAppPolling() {
 			try {
 				if (that->host != nullptr) {
 					that->host->UpdateAppRunningStates();
-					if (that->wasConnected.load() && !that->host->Connected) {
+					// Ride out a brief drop, such as a Wi-Fi blip, before giving up on the PC
+					if (that->wasConnected.load() && !that->host->Connected && ++missedPolls < 4) {
+						if (missedPolls == 1) that->ShowReconnecting(true);
+					}
+					else if (that->wasConnected.load() && !that->host->Connected) {
+						missedPolls = 0;
+						that->ShowReconnecting(false);
 						that->wasConnected.store(false);
 
 						// Show the disconnect dialog only if page instance still exists (no visible-page checks)
@@ -212,6 +222,10 @@ void AppPage::StartAppPolling() {
 					else if (!that->wasConnected.load() && that->host->Connected) {
 						that->wasConnected.store(true);
 					}
+					if (missedPolls > 0 && that->host->Connected) {
+						missedPolls = 0;
+						that->ShowReconnecting(false);
+					}
 				}
 			} catch (const std::exception &e) {
 				Utils::Logf("[AppPage] Failed to poll app and host running state. Exception: %s\n", e.what());
@@ -223,12 +237,21 @@ void AppPage::StartAppPolling() {
 	});
 }
 
+void AppPage::ShowReconnecting(bool show) {
+	Platform::WeakReference weakThis(this);
+	Dispatcher->RunAsync(Windows::UI::Core::CoreDispatcherPriority::Normal, ref new Windows::UI::Core::DispatchedHandler([weakThis, show]() {
+		auto page = weakThis.Resolve<AppPage>();
+		if (page != nullptr) page->ReconnectingText->Visibility = show ? Windows::UI::Xaml::Visibility::Visible : Windows::UI::Xaml::Visibility::Collapsed;
+	}));
+}
+
 void AppPage::OnNavigatedFrom(Windows::UI::Xaml::Navigation::NavigationEventArgs^ e) {
 	if (m_pinCancelled) m_pinCancelled->store(true);
 	if (m_pinDialog != nullptr) m_pinDialog->Hide();
 	StopHeroMotion();
 	continueAppFetch.store(false);
 	CloseLetterJump();
+	if (host != nullptr && SelectedApp != nullptr) host->LastSelectedAppId = SelectedApp->Id;
 
 	auto observableApps = host != nullptr ? dynamic_cast<IObservableVector<MoonlightApp^>^>(host->Apps) : nullptr;
 	if (observableApps != nullptr) {
@@ -1036,6 +1059,21 @@ void AppPage::CloseLetterJump() {
 	}
 	if (container != nullptr) container->Focus(Windows::UI::Xaml::FocusState::Keyboard);
 	else libraryNavButton->Focus(Windows::UI::Xaml::FocusState::Keyboard);
+}
+
+// Start on the first or returning game, unless the user already moved during the fetch
+void AppPage::FocusShelfOnArrival() {
+	if (host == nullptr || host->Apps->Size == 0 || OrbitInput::HasOpenPopup()) return;
+	auto focused = FocusManager::GetFocusedElement();
+	if (focused != libraryNavButton && (dynamic_cast<GridViewItem^>(focused) != nullptr || dynamic_cast<Windows::UI::Xaml::Controls::Primitives::ButtonBase^>(focused) != nullptr)) return;
+	auto target = host->Apps->GetAt(0);
+	for (unsigned int i = 0; i < host->Apps->Size; ++i) {
+		if (host->Apps->GetAt(i)->Id == m_returnAppId) target = host->Apps->GetAt(i);
+	}
+	HostsGrid->ScrollIntoView(target);
+	HostsGrid->UpdateLayout();
+	auto container = dynamic_cast<GridViewItem^>(HostsGrid->ContainerFromItem(target));
+	if (container != nullptr) container->Focus(Windows::UI::Xaml::FocusState::Keyboard);
 }
 
 // The poster shown in the hero, so Down from the tabs returns to it

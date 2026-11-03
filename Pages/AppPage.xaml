@@ -69,6 +69,7 @@
                         <Button x:Name="settingsNavButton" Style="{StaticResource OrbitNavButtonStyle}" Content="Settings" Click="settingsButton_Click" />
                         <ContentControl Style="{StaticResource OrbitKeyRBStyle}" Margin="6,0,0,0" />
                     </StackPanel>
+                    <TextBlock x:Name="ReconnectingText" Text="Reconnecting&#x2026;" Visibility="Collapsed" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="13" Foreground="{StaticResource OrbitTextBrush}" />
                     <TextBlock x:Name="ClockText" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="13" Foreground="{StaticResource OrbitTextBrush}" />
                 </Grid>
 

@@ -772,9 +772,6 @@
     <None Include="Assets\qrSunshine.svg">
       <Filter>Assets</Filter>
     </None>
-    <None Include="Assets\qrSupport.svg">
-      <Filter>Assets</Filter>
-    </None>
     <None Include="Assets\Font\ModeSeven-24.spritefont">
       <Filter>Assets</Filter>
     </None>

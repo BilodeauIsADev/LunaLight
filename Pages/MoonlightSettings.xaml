@@ -49,9 +49,9 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Spacing="6" Margin="-18,0,0,0">
-                    <Button x:Name="GeneralSectionButton" Style="{StaticResource SettingsSectionButtonStyle}" Content="General" GotFocus="SectionButton_GotFocus" Click="SectionButton_GotFocus" Background="{StaticResource SettingsSectionSelectedBrush}" Foreground="{StaticResource OrbitTextBrush}"/>
-                    <Button x:Name="DisplaySectionButton" Style="{StaticResource SettingsSectionButtonStyle}" Content="Display" GotFocus="SectionButton_GotFocus" Click="SectionButton_GotFocus"/>
-                    <Button x:Name="InputSectionButton" Style="{StaticResource SettingsSectionButtonStyle}" Content="Input" GotFocus="SectionButton_GotFocus" Click="SectionButton_GotFocus"/>
+                    <Button x:Name="GeneralSectionButton" Style="{StaticResource SettingsSectionButtonStyle}" Content="General" GotFocus="SectionButton_GotFocus" Click="SectionButton_Click" Background="{StaticResource SettingsSectionSelectedBrush}" Foreground="{StaticResource OrbitTextBrush}"/>
+                    <Button x:Name="DisplaySectionButton" Style="{StaticResource SettingsSectionButtonStyle}" Content="Display" GotFocus="SectionButton_GotFocus" Click="SectionButton_Click"/>
+                    <Button x:Name="InputSectionButton" Style="{StaticResource SettingsSectionButtonStyle}" Content="Input" GotFocus="SectionButton_GotFocus" Click="SectionButton_Click"/>
                 </StackPanel>
                 <Grid Grid.Column="1" MaxWidth="560" HorizontalAlignment="Left">
                     <Grid.RowDefinitions>

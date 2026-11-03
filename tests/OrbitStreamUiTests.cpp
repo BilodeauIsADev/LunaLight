@@ -20,6 +20,25 @@ static void CheckText(const std::string& actual, const char* expected, const cha
 }
 
 int main() {
+	Check(BitrateForStep(0) == 5000, "Bitrate slider starts at the minimum");
+	Check(BitrateForStep(3) == 20000, "The 1080p60 default is a stop");
+	Check(BitrateForStep(MaxBitrateStep) == 800000, "Bitrate slider ends at the maximum");
+	for (int step = 0; step <= MaxBitrateStep; ++step) {
+		Check(NearestBitrateStep(BitrateForStep(step)) == step, "Every stop maps back to itself");
+	}
+	Check(BitrateForStep(NearestBitrateStep(28000)) == 30000, "A default between stops shows the closest stop");
+	Check(NearestBitrateStep(5000000) == MaxBitrateStep, "Over the range clamps to the maximum");
+
+	Check(GetStreamPreset(0, 2160, true, false).maxHeight == 2160, "Best quality uses the display's resolution");
+	Check(GetStreamPreset(0, 1080, true, false).maxHeight == 1080, "Best quality does not exceed a 1080p display");
+	Check(GetStreamPreset(1, 2160, true, false).maxHeight == 1080, "Balanced stays at 1080p");
+	Check(GetStreamPreset(1, 720, true, false).maxHeight == 720, "Balanced does not exceed a 720p display");
+	Check(GetStreamPreset(1, 2160, true, false).fps == 60, "Balanced stays at 60 FPS");
+	Check(GetStreamPreset(2, 2160, true, false).fps == 120, "Low latency uses 120 FPS when the display can show it");
+	Check(GetStreamPreset(2, 2160, false, false).fps == 60, "Low latency stays at 60 FPS otherwise");
+	Check(!GetStreamPreset(1, 1080, false, true).immediatePacing, "Xbox One balances on Display-locked");
+	Check(GetStreamPreset(2, 1080, false, true).immediatePacing, "Low latency is always Immediate");
+
 	// Known host-side setup problems read as instructions, not codes
 	CheckText(DescribeStartFailure(StartErrorGsNotSupported4K, "raw"),
 	          "The host can't stream at 4K. Lower the resolution in the stream settings.",

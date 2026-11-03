@@ -105,6 +105,7 @@ void App::OnLaunched(Windows::ApplicationModel::Activation::LaunchActivatedEvent
 	ApplyUiPreferences();
 	auto that = this;
 	state->Init().then([that](){
+		that->m_stateLoaded = true;
 		that->m_menuPage->OnStateLoaded();
 	});
 	displayRequest->RequestActive();
@@ -137,8 +138,19 @@ void App::ApplyUiPreferences()
 void App::OnSuspending(Object^ sender, SuspendingEventArgs^ e)
 {
 	(void) sender;	// Unused parameter
-	(void) e;	// Unused parameter
 	displayRequest->RequestRelease();
+	// Settings mostly save on leaving their page; the app may never come back from here.
+	// Not before the state has loaded: that would overwrite saved PCs with nothing.
+	if (!m_stateLoaded) return;
+	auto deferral = e->SuspendingOperation->GetDeferral();
+	GetApplicationState()->UpdateFile().then([deferral](concurrency::task<void> saved) {
+		try {
+			saved.get();
+		} catch (...) {
+			Utils::Log("[App] Failed to save settings while suspending.\n");
+		}
+		deferral->Complete();
+	});
 }
 
 /// <summary>

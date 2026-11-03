@@ -46,6 +46,8 @@ namespace moonlight_xbox_dx {
 		bool enableGraphs = true;
 		Windows::Foundation::Collections::IVector<MoonlightApp^>^ apps;
 	internal:
+		// The game highlighted when the library page was last left; not saved
+		int LastSelectedAppId = -1;
 		void ApplyHostInfo(MoonlightHost^ source);
 		bool OpenSignInOnConnect = false; // One navigation only; never persisted.
 

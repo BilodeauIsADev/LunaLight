@@ -8,11 +8,11 @@
 #include "HostSettingsPage.xaml.h"
 #include "Common/OrbitUiScale.h"
 #include "Common/OrbitClock.h"
+#include "Common/OrbitStreamUi.h"
 #include "Utils.hpp"
 #include <gamingdeviceinformation.h>
 #include <Limelight.h> // SCM_* server codec support bits
 #include <cmath> // sqrtf, lround
-#include <vector>
 
 using namespace Windows::UI::Core;
 
@@ -211,6 +211,7 @@ void HostSettingsPage::OnNavigatedTo(Windows::UI::Xaml::Navigation::NavigationEv
 			XboxOneGraphsNote->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
 		}
 	}
+	ShowBitrate();
 }
 
 void HostSettingsPage::backButton_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
@@ -224,10 +225,14 @@ void HostSettingsPage::OnBackRequested(Platform::Object^ e, Windows::UI::Core::B
 	// UWP on Xbox One triggers a back request whenever the B
 	// button is pressed which can result in the app being
 	// suspended if unhandled
+	args->Handled = true;
+	// B steps out of the options to the section list before leaving the page
+	if (m_activeSection != nullptr && (OrbitInput::HasFocusIn(ContentScroll) || OrbitInput::HasFocusIn(AppSettingsPanel))) {
+		m_activeSection->Focus(Windows::UI::Xaml::FocusState::Keyboard);
+		return;
+	}
 	GetApplicationState()->UpdateFile();
 	this->Frame->GoBack();
-	args->Handled = true;
-
 }
 
 void HostSettingsPage::ResolutionSelector_SelectionChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::SelectionChangedEventArgs^ e)
@@ -237,6 +242,7 @@ void HostSettingsPage::ResolutionSelector_SelectionChanged(Platform::Object^ sen
 	// Default to a new bitrate if a new resolution was chosen
 	if (selectedResolution->Width != host->Resolution->Width) {
 		host->Bitrate = getDefaultBitrate(selectedResolution->Width, selectedResolution->Height, host->FPS, host->VideoCodec);
+		ShowBitrate();
 	}
 
 	host->Resolution = selectedResolution;
@@ -250,6 +256,7 @@ void HostSettingsPage::FPSSelector_SelectionChanged(Platform::Object^ sender, Wi
 	// Default to a new bitrate if a new FPS was chosen
 	if (selectedFPS != host->FPS) {
 		host->Bitrate = getDefaultBitrate(host->Resolution->Width, host->Resolution->Height, selectedFPS, host->VideoCodec);
+		ShowBitrate();
 	}
 
 	host->FPS = selectedFPS;
@@ -291,6 +298,74 @@ void HostSettingsPage::PacketSizeSelector_SelectionChanged(Platform::Object^ sen
 	host->PacketSize = selectedPacketSize;
 }
 
+void HostSettingsPage::ShowBitrate()
+{
+	// Slider moves back here land on the stop already showing, so an in-between default survives
+	BitrateSlider->Value = OrbitStreamUi::NearestBitrateStep(host->Bitrate);
+	auto text = Utils::StringFromStdString(std::to_string(host->Bitrate / 1000)) + L" Mbps";
+	BitrateText->Text = text;
+	Windows::UI::Xaml::Automation::AutomationProperties::SetItemStatus(BitrateSlider, text);
+}
+
+void HostSettingsPage::BitrateSlider_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e)
+{
+	if (host == nullptr) return;
+	const int step = static_cast<int>(e->NewValue);
+	if (step == OrbitStreamUi::NearestBitrateStep(host->Bitrate)) return;
+	host->Bitrate = OrbitStreamUi::BitrateForStep(step);
+	ShowBitrate();
+}
+
+// A preset is a one-time fill: nothing is stored, and each option stays adjustable
+void HostSettingsPage::PresetSelector_SelectionChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::SelectionChangedEventArgs^ e)
+{
+	const int index = PresetSelector->SelectedIndex;
+	if (index < 0 || host == nullptr) return;
+	int displayHeight = 2160;
+	bool supports120Hz = false;
+	auto hdmi = HdmiDisplayInformation::GetForCurrentView();
+	if (hdmi != nullptr) {
+		displayHeight = static_cast<int>(hdmi->GetCurrentDisplayMode()->ResolutionHeightInRawPixels);
+		for (auto mode : hdmi->GetSupportedDisplayModes()) {
+			if (mode->RefreshRate >= 119) supports120Hz = true;
+		}
+	}
+	const auto preset = OrbitStreamUi::GetStreamPreset(index, displayHeight, supports120Hz, IsXboxOne());
+	int resolution = 0;
+	for (unsigned int i = 0; i < AvailableResolutions->Size; i++) {
+		if (AvailableResolutions->GetAt(i)->Height <= preset.maxHeight) resolution = static_cast<int>(i);
+	}
+
+	// Host first: the selectors' handlers then see no change and keep the bitrate set here
+	host->Resolution = AvailableResolutions->GetAt(resolution);
+	host->FPS = preset.fps;
+	host->VideoCodec = CodecComboBox->IsEnabled ? L"HEVC (H.265)" : L"H.264"; // disabled on Xbox One, H.264 only
+	host->FramePacing = preset.immediatePacing ? L"Immediate" : L"Display-locked";
+	host->AudioBuffer = ref new Platform::String(preset.audioBuffer);
+	host->Bitrate = getDefaultBitrate(host->Resolution->Width, host->Resolution->Height, host->FPS, host->VideoCodec);
+	ResolutionSelector->SelectedIndex = resolution;
+	unsigned int fpsIndex;
+	if (AvailableFPS->IndexOf(host->FPS, &fpsIndex)) FPSSelector->SelectedIndex = static_cast<int>(fpsIndex);
+	auto selectText = [](ComboBox^ box, IVector<Platform::String^>^ items, Platform::String^ value) {
+		for (unsigned int i = 0; i < items->Size; i++) {
+			if (items->GetAt(i) == value) box->SelectedIndex = static_cast<int>(i);
+		}
+	};
+	selectText(CodecComboBox, AvailableVideoCodecs, host->VideoCodec);
+	selectText(FramePacingComboBox, AvailableFramePacing, host->FramePacing);
+	selectText(AudioBuffersComboBox, AvailableAudioBuffers, host->AudioBuffer);
+	ShowBitrate();
+
+	Platform::String^ names[] = { L"Best quality", L"Balanced", L"Low latency" };
+	PresetNote->Text = L"Applied " + names[index] + L". You can still change each option below.";
+	// Back to the placeholder: the rows below stay the truth once any is changed
+	Platform::WeakReference weakThis(this);
+	Dispatcher->RunAsync(Windows::UI::Core::CoreDispatcherPriority::Normal, ref new Windows::UI::Core::DispatchedHandler([weakThis]() {
+		auto page = weakThis.Resolve<HostSettingsPage>();
+		if (page != nullptr) page->PresetSelector->SelectedIndex = -1;
+	}));
+}
+
 void HostSettingsPage::BitrateInput_KeyDown(Platform::Object^ sender, Windows::UI::Xaml::Input::KeyRoutedEventArgs^ e)
 {
 	if (e->Key == Windows::System::VirtualKey::Enter) {
@@ -313,6 +388,7 @@ void HostSettingsPage::CodecComboBox_SelectionChanged(Platform::Object^ sender, 
 	if (selectedCodec != host->VideoCodec) {
 		// Default to a new bitrate if a new codec was chosen
 		host->Bitrate = getDefaultBitrate(host->Resolution->Width, host->Resolution->Height, host->FPS, selectedCodec);
+		ShowBitrate();
 	}
 
 	if (selectedCodec == "PyroWave 4:2:0" || selectedCodec == "PyroWave 4:4:4") {
@@ -324,34 +400,6 @@ void HostSettingsPage::CodecComboBox_SelectionChanged(Platform::Object^ sender, 
 	}
 
 	host->VideoCodec = selectedCodec;
-}
-
-// Visible controls under root, top to bottom
-static void CollectFocusableControls(DependencyObject^ root, std::vector<Control^>& out) {
-	const int count = VisualTreeHelper::GetChildrenCount(root);
-	for (int i = 0; i < count; i++) {
-		auto child = VisualTreeHelper::GetChild(root, i);
-		auto element = dynamic_cast<FrameworkElement^>(child);
-		if (element != nullptr && element->Visibility != Windows::UI::Xaml::Visibility::Visible) continue;
-		auto control = dynamic_cast<Control^>(child);
-		if (control != nullptr && control->IsTabStop) {
-			out.push_back(control);
-			continue;
-		}
-		CollectFocusableControls(child, out);
-	}
-}
-
-// XY focus passes over the right-aligned toggles in these rows, so give each
-// panel an explicit Up/Down order. Rebuilt on each show since rows such as HDR
-// can be hidden.
-static void ChainPanelFocus(FrameworkElement^ panel) {
-	std::vector<Control^> controls;
-	CollectFocusableControls(panel, controls);
-	for (size_t i = 0; i + 1 < controls.size(); i++) {
-		controls[i]->XYFocusDown = controls[i + 1];
-		controls[i + 1]->XYFocusUp = controls[i];
-	}
 }
 
 void HostSettingsPage::SectionButton_GotFocus(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
@@ -376,13 +424,43 @@ void HostSettingsPage::SectionButton_GotFocus(Platform::Object^ sender, Windows:
 				}
 			}
 			SectionTitle->Text = titles[i];
-			if (selected != GlobalSettingsOption) ChainPanelFocus(panels[i]);
 			ContentScroll->Visibility = selected == GlobalSettingsOption ? Windows::UI::Xaml::Visibility::Collapsed : Windows::UI::Xaml::Visibility::Visible;
 			CalibrationFrame->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
 			if (selected == GlobalSettingsOption) AppSettingsPanel->ShowSection(-1, GlobalSettingsOption, CalibrationFrame);
 			if (changed) ContentScroll->ChangeView(nullptr, 0.0, nullptr);
 			break;
 		}
+	}
+}
+
+// A on a section opens its options, as the Select hint promises
+void HostSettingsPage::SectionButton_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+	SectionButton_GotFocus(sender, e);
+	auto target = dynamic_cast<Control^>(safe_cast<Button^>(sender)->XYFocusRight);
+	if (target != nullptr) target->Focus(Windows::UI::Xaml::FocusState::Keyboard);
+}
+
+// Light the row holding focus, like AppSettingsControl's cards. Dropdown items
+// live in a popup outside the page, so leave it on meanwhile.
+void HostSettingsPage::Page_GotFocus(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+	if (OrbitInput::HasOpenPopup()) return;
+	Border^ row = nullptr;
+	for (auto node = dynamic_cast<DependencyObject^>(e->OriginalSource); node != nullptr && row == nullptr; node = VisualTreeHelper::GetParent(node)) {
+		auto parent = VisualTreeHelper::GetParent(node);
+		if (parent == VideoPanel || parent == AudioPanel || parent == OverlayPanel || parent == GeneralPanel) row = dynamic_cast<Border^>(node);
+	}
+	if (row != nullptr) OrbitInput::RememberSectionRow(e->OriginalSource);
+	if (row == m_focusedRow) return;
+	if (m_focusedRow != nullptr) {
+		m_focusedRow->ClearValue(Border::BackgroundProperty);
+		m_focusedRow->ClearValue(Border::BorderBrushProperty);
+	}
+	m_focusedRow = row;
+	if (row != nullptr) {
+		row->Background = safe_cast<Brush^>(Resources->Lookup("SettingsRowFocusedBrush"));
+		row->BorderBrush = safe_cast<Brush^>(Resources->Lookup("SettingsRowFocusedBorderBrush"));
 	}
 }
 
@@ -462,4 +540,5 @@ int HostSettingsPage::getDefaultBitrate(int width, int height, int fps, Platform
 void HostSettingsPage::Page_PreviewKeyDown(Platform::Object^ sender, Windows::UI::Xaml::Input::KeyRoutedEventArgs^ e) {
 	if (OrbitInput::HandleBumpers(e, 2, nullptr, backButton, settingsNavButton)) return;
 	if (OrbitInput::HandleTabBarVertical(e, { backButton, settingsNavButton }, [this]() -> Control^ { return m_activeSection; })) return;
+	if (OrbitInput::HandleListVertical(e, ContentScroll) || OrbitInput::HandleListVertical(e, AppSettingsPanel)) return;
 }

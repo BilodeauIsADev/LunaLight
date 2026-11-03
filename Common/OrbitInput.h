@@ -2,8 +2,10 @@
 
 #include "OrbitNavigation.h"
 
+#include <algorithm>
 #include <functional>
 #include <initializer_list>
+#include <vector>
 
 namespace moonlight_xbox_dx {
 namespace OrbitInput {
@@ -75,6 +77,72 @@ inline bool HandleTabBarVertical(Windows::UI::Xaml::Input::KeyRoutedEventArgs^ e
 	auto target = below ? below() : nullptr;
 	if (target != nullptr) target->Focus(Windows::UI::Xaml::FocusState::Keyboard);
 	return true;
+}
+
+inline bool HasFocusIn(Windows::UI::Xaml::DependencyObject^ root) {
+	auto node = dynamic_cast<Windows::UI::Xaml::DependencyObject^>(Windows::UI::Xaml::Input::FocusManager::GetFocusedElement());
+	for (; node != nullptr; node = Windows::UI::Xaml::Media::VisualTreeHelper::GetParent(node)) {
+		if (node == root) return true;
+	}
+	return false;
+}
+
+// Right and A on a section return to the row last used there. A row's XYFocusLeft is its section.
+inline void RememberSectionRow(Platform::Object^ focused) {
+	auto control = dynamic_cast<Windows::UI::Xaml::Controls::Control^>(focused);
+	if (control == nullptr) return;
+	auto section = dynamic_cast<Windows::UI::Xaml::Controls::Button^>(control->XYFocusLeft);
+	if (section != nullptr) section->XYFocusRight = control;
+}
+
+// Visible, enabled controls under root, top to bottom
+inline void CollectFocusable(Windows::UI::Xaml::DependencyObject^ root, std::vector<Windows::UI::Xaml::Controls::Control^>& out) {
+	const int count = Windows::UI::Xaml::Media::VisualTreeHelper::GetChildrenCount(root);
+	for (int i = 0; i < count; ++i) {
+		auto child = Windows::UI::Xaml::Media::VisualTreeHelper::GetChild(root, i);
+		auto element = dynamic_cast<Windows::UI::Xaml::FrameworkElement^>(child);
+		if (element != nullptr && element->Visibility != Windows::UI::Xaml::Visibility::Visible) continue;
+		auto control = dynamic_cast<Windows::UI::Xaml::Controls::Control^>(child);
+		if (control != nullptr && control->IsTabStop) {
+			if (control->IsEnabled) out.push_back(control);
+			continue;
+		}
+		CollectFocusable(child, out);
+	}
+}
+
+// Called during PreviewKeyDown. XY focus skips the right-aligned toggles in option
+// rows, so walk the rows in order. Collected per key press: rows hide and disable.
+inline bool HandleListVertical(Windows::UI::Xaml::Input::KeyRoutedEventArgs^ e, Windows::UI::Xaml::DependencyObject^ list) {
+	using namespace Windows::System;
+	int delta = 0;
+	switch (e->Key) {
+	case VirtualKey::GamepadDPadDown: case VirtualKey::GamepadLeftThumbstickDown: case VirtualKey::Down: delta = 1; break;
+	case VirtualKey::GamepadDPadUp: case VirtualKey::GamepadLeftThumbstickUp: case VirtualKey::Up: delta = -1; break;
+	// About a screenful of option rows
+	case VirtualKey::GamepadRightTrigger: delta = 5; break;
+	case VirtualKey::GamepadLeftTrigger: delta = -5; break;
+	default: return false;
+	}
+	if (HasOpenPopup() || !HasFocusIn(list)) return false;
+	std::vector<Windows::UI::Xaml::Controls::Control^> controls;
+	CollectFocusable(list, controls);
+	auto focused = Windows::UI::Xaml::Input::FocusManager::GetFocusedElement();
+	for (int i = 0; i < static_cast<int>(controls.size()); ++i) {
+		if (controls[i] != focused) continue;
+		e->Handled = true;
+		const int target = (std::max)(0, (std::min)(static_cast<int>(controls.size()) - 1, i + delta));
+		if (target == i) return true;
+		controls[target]->Focus(Windows::UI::Xaml::FocusState::Keyboard);
+		// Show the whole row, not just its control: titles sit beside it
+		Windows::UI::Xaml::DependencyObject^ node = controls[target];
+		for (; node != nullptr; node = Windows::UI::Xaml::Media::VisualTreeHelper::GetParent(node)) {
+			auto row = dynamic_cast<Windows::UI::Xaml::Controls::Border^>(node);
+			if (row != nullptr) { row->StartBringIntoView(); break; }
+		}
+		return true;
+	}
+	return false;
 }
 
 inline bool HandleShelfTriggers(Windows::UI::Xaml::Input::KeyRoutedEventArgs^ e,
