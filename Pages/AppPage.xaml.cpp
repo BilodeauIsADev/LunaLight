@@ -1158,6 +1158,7 @@ void AppPage::LoadHeroImage(Platform::String^ path, bool logo) {
 		if (logo) m_pendingLogo = image;
 		else m_pendingArtwork = image;
 		UIElement^ layer = image;
+		Windows::UI::Xaml::Media::Imaging::BitmapImage^ ambientSource = nullptr;
 		if (cover) {
 			// The cover sits on the right with its own soft left edge, like the old hero
 			auto frame = ref new Grid();
@@ -1180,7 +1181,32 @@ void AppPage::LoadHeroImage(Platform::String^ path, bool logo) {
 			frame->Children->Append(edge);
 			layer = frame;
 		} else if (!logo) {
-			// Fade the art's bottom edge into the black page
+			// Behind the banner, the same art decoded tiny and stretched over the page: a cheap
+			// blur that puts the game row on the game's colours instead of black
+			ambientSource = ref new Windows::UI::Xaml::Media::Imaging::BitmapImage();
+			ambientSource->DecodePixelWidth = 40;
+			auto ambient = ref new Image();
+			ambient->Stretch = Windows::UI::Xaml::Media::Stretch::UniformToFill;
+			ambient->Opacity = 0; // shown with the banner in PresentHeroArtwork
+			ambient->Source = ambientSource;
+			auto dim = ref new Windows::UI::Xaml::Shapes::Rectangle();
+			dim->Fill = ref new Windows::UI::Xaml::Media::SolidColorBrush(Windows::UI::ColorHelper::FromArgb(148, 0, 0, 0));
+			// Black behind the banner, so its faded bottom edge meets the ambient art lower down
+			auto under = ref new Windows::UI::Xaml::Media::LinearGradientBrush();
+			under->StartPoint = Windows::Foundation::Point(0, 0);
+			under->EndPoint = Windows::Foundation::Point(0, 1);
+			auto underSolid = ref new Windows::UI::Xaml::Media::GradientStop();
+			underSolid->Color = Windows::UI::ColorHelper::FromArgb(255, 0, 0, 0);
+			underSolid->Offset = 0.5;
+			auto underClear = ref new Windows::UI::Xaml::Media::GradientStop();
+			underClear->Color = Windows::UI::ColorHelper::FromArgb(0, 0, 0, 0);
+			underClear->Offset = 0.75;
+			under->GradientStops->Append(underSolid);
+			under->GradientStops->Append(underClear);
+			auto underRect = ref new Windows::UI::Xaml::Shapes::Rectangle();
+			underRect->Fill = under;
+
+			// The banner keeps its whole frame across the top, its bottom edge fading to black
 			auto frame = ref new Grid();
 			frame->VerticalAlignment = Windows::UI::Xaml::VerticalAlignment::Top;
 			frame->Children->Append(image);
@@ -1198,12 +1224,18 @@ void AppPage::LoadHeroImage(Platform::String^ path, bool logo) {
 			auto edge = ref new Windows::UI::Xaml::Shapes::Rectangle();
 			edge->Fill = fade;
 			frame->Children->Append(edge);
-			layer = frame;
+			auto page = ref new Grid();
+			page->Children->Append(ambient);
+			page->Children->Append(dim);
+			page->Children->Append(underRect);
+			page->Children->Append(frame);
+			layer = page;
 		}
 		// Decode into an invisible, live Image before presenting it. Title text
 		// remains visible until the logo has successfully opened.
 		layers->Children->Append(layer);
 		source->UriSource = ref new Windows::Foundation::Uri(ref new Platform::String(address.c_str()));
+		if (ambientSource != nullptr) ambientSource->UriSource = source->UriSource;
 	} catch (Platform::Exception^) {
 		HeroArtworkFailed(request, logo);
 	}
@@ -1217,14 +1249,27 @@ void AppPage::PresentHeroArtwork(Windows::UI::Xaml::Media::ImageSource^ source, 
 	ClearPendingArtwork(logo);
 	image->Opacity = 1;
 	if (logo) HeroTitle->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
-	OrbitMotion::FadeArtwork(logo ? HeroLogoLayers : HeroArtLayers, HeroLayerFor(image, logo));
+	auto layer = HeroLayerFor(image, logo);
+	// The ambient copy behind wide art waits for the banner, so a failed banner never shows it
+	auto parts = dynamic_cast<Grid^>(layer);
+	if (parts != nullptr) {
+		for (auto part : parts->Children) {
+			if (dynamic_cast<Image^>(part) != nullptr) part->Opacity = 1;
+		}
+	}
+	OrbitMotion::FadeArtwork(logo ? HeroLogoLayers : HeroArtLayers, layer);
 }
 
-// The layer child for an image: the image itself, or the frame wrapping a cover.
+// The layer child for an image: the image itself, or the outermost frame wrapping it.
 UIElement^ AppPage::HeroLayerFor(Image^ image, bool logo) {
 	auto layers = logo ? HeroLogoLayers : HeroArtLayers;
-	auto frame = dynamic_cast<UIElement^>(image->Parent);
-	return frame != nullptr && frame != layers ? frame : image;
+	UIElement^ layer = image;
+	auto parent = dynamic_cast<FrameworkElement^>(image->Parent);
+	while (parent != nullptr && parent != layers) {
+		layer = parent;
+		parent = dynamic_cast<FrameworkElement^>(parent->Parent);
+	}
+	return layer;
 }
 
 void AppPage::ClearPendingArtwork(bool logo) {

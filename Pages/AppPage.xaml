@@ -51,7 +51,8 @@
                 </Rectangle>
             </Grid>
             <Rectangle Fill="{StaticResource OrbitHeroLeftFadeBrush}" IsHitTestVisible="False" />
-            <Rectangle Fill="{StaticResource OrbitHeroBottomFadeBrush}" IsHitTestVisible="False" />
+            <!-- Lighter here: the ambient art behind the game row should show through -->
+            <Rectangle Fill="{StaticResource OrbitHeroBottomFadeBrush}" Opacity="0.5" IsHitTestVisible="False" />
 
             <Grid>
                 <Grid.RowDefinitions>
