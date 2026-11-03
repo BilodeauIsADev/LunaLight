@@ -7,9 +7,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/BilodeauIsADev/moonlight-xbox/releases">Releases</a> ·
-  <a href="https://github.com/BilodeauIsADev/moonlight-xbox/actions">Bleeding edge builds</a> ·
-  <a href="https://github.com/BilodeauIsADev/moonlight-xbox/issues">Issues</a>
+  <a href="https://github.com/BilodeauIsADev/LunaLight/releases">Releases</a> ·
+  <a href="https://github.com/BilodeauIsADev/LunaLight/actions">Bleeding edge builds</a> ·
+  <a href="https://github.com/BilodeauIsADev/LunaLight/issues">Issues</a>
 </p>
 
 ---
@@ -24,7 +24,7 @@ Lunalight is a fork of [Moonlight UWP](https://github.com/TheElixZammuto/moonlig
 Lunalight is not on the Microsoft Store. Install it on an Xbox in Dev Mode:
 
 1. [Enable Dev Mode](https://learn.microsoft.com/en-us/windows/uwp/xbox-apps/devkit-activation) on your Xbox.
-2. Download a build from [Releases](https://github.com/BilodeauIsADev/moonlight-xbox/releases), or a bleeding-edge build from [Actions](https://github.com/BilodeauIsADev/moonlight-xbox/actions).
+2. Download a build from [Releases](https://github.com/BilodeauIsADev/LunaLight/releases), or a bleeding-edge build from [Actions](https://github.com/BilodeauIsADev/LunaLight/actions).
 3. In the Device Portal, install `moonlight-xbox-dx.msixbundle`, then add the dependencies `Microsoft.UI.Xaml.2.7.appx` and `Microsoft.VCLibs.x64.14.00.appx`.
 
 ## Usage
