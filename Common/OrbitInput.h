@@ -127,9 +127,9 @@ inline bool HandleListVertical(Windows::UI::Xaml::Input::KeyRoutedEventArgs^ e, 
 	if (HasOpenPopup() || !HasFocusIn(list)) return false;
 	std::vector<Windows::UI::Xaml::Controls::Control^> controls;
 	CollectFocusable(list, controls);
-	auto focused = Windows::UI::Xaml::Input::FocusManager::GetFocusedElement();
 	for (int i = 0; i < static_cast<int>(controls.size()); ++i) {
-		if (controls[i] != focused) continue;
+		// Not a handle comparison with GetFocusedElement: Object^ and Control^ can differ for one control
+		if (!HasFocusIn(controls[i])) continue;
 		e->Handled = true;
 		const int target = (std::max)(0, (std::min)(static_cast<int>(controls.size()) - 1, i + delta));
 		if (target == i) return true;

@@ -1065,7 +1065,8 @@ void AppPage::CloseLetterJump() {
 void AppPage::FocusShelfOnArrival() {
 	if (host == nullptr || host->Apps->Size == 0 || OrbitInput::HasOpenPopup()) return;
 	auto focused = FocusManager::GetFocusedElement();
-	if (focused != libraryNavButton && (dynamic_cast<GridViewItem^>(focused) != nullptr || dynamic_cast<Windows::UI::Xaml::Controls::Primitives::ButtonBase^>(focused) != nullptr)) return;
+	auto button = dynamic_cast<Windows::UI::Xaml::Controls::Primitives::ButtonBase^>(focused);
+	if (dynamic_cast<GridViewItem^>(focused) != nullptr || (button != nullptr && button != libraryNavButton)) return;
 	auto target = host->Apps->GetAt(0);
 	for (unsigned int i = 0; i < host->Apps->Size; ++i) {
 		if (host->Apps->GetAt(i)->Id == m_returnAppId) target = host->Apps->GetAt(i);
@@ -1148,9 +1149,10 @@ void AppPage::LoadHeroImage(Platform::String^ path, bool logo) {
 		});
 		auto image = ref new Image();
 		if (logo && SelectedApp != nullptr) Windows::UI::Xaml::Automation::AutomationProperties::SetName(image, SelectedApp->Name);
-		image->Stretch = logo ? Windows::UI::Xaml::Media::Stretch::Uniform : Windows::UI::Xaml::Media::Stretch::UniformToFill;
+		// Wide art keeps its whole frame across the top (heroes are about 3:1, filling 16:9 cropped them)
+		image->Stretch = cover ? Windows::UI::Xaml::Media::Stretch::UniformToFill : Windows::UI::Xaml::Media::Stretch::Uniform;
 		image->HorizontalAlignment = logo ? Windows::UI::Xaml::HorizontalAlignment::Left : Windows::UI::Xaml::HorizontalAlignment::Stretch;
-		image->VerticalAlignment = cover ? Windows::UI::Xaml::VerticalAlignment::Top : Windows::UI::Xaml::VerticalAlignment::Stretch;
+		image->VerticalAlignment = logo ? Windows::UI::Xaml::VerticalAlignment::Stretch : Windows::UI::Xaml::VerticalAlignment::Top;
 		image->Source = source;
 		image->Opacity = 0;
 		if (logo) m_pendingLogo = image;
@@ -1173,6 +1175,26 @@ void AppPage::LoadHeroImage(Platform::String^ path, bool logo) {
 			clear->Offset = 0.45;
 			fade->GradientStops->Append(solid);
 			fade->GradientStops->Append(clear);
+			auto edge = ref new Windows::UI::Xaml::Shapes::Rectangle();
+			edge->Fill = fade;
+			frame->Children->Append(edge);
+			layer = frame;
+		} else if (!logo) {
+			// Fade the art's bottom edge into the black page
+			auto frame = ref new Grid();
+			frame->VerticalAlignment = Windows::UI::Xaml::VerticalAlignment::Top;
+			frame->Children->Append(image);
+			auto fade = ref new Windows::UI::Xaml::Media::LinearGradientBrush();
+			fade->StartPoint = Windows::Foundation::Point(0, 0);
+			fade->EndPoint = Windows::Foundation::Point(0, 1);
+			auto clear = ref new Windows::UI::Xaml::Media::GradientStop();
+			clear->Color = Windows::UI::ColorHelper::FromArgb(0, 0, 0, 0);
+			clear->Offset = 0.55;
+			auto solid = ref new Windows::UI::Xaml::Media::GradientStop();
+			solid->Color = Windows::UI::ColorHelper::FromArgb(255, 0, 0, 0);
+			solid->Offset = 1;
+			fade->GradientStops->Append(clear);
+			fade->GradientStops->Append(solid);
 			auto edge = ref new Windows::UI::Xaml::Shapes::Rectangle();
 			edge->Fill = fade;
 			frame->Children->Append(edge);
