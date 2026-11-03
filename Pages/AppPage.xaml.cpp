@@ -1221,8 +1221,10 @@ void AppPage::LoadHeroImage(Platform::String^ path, bool logo) {
 			solid->Offset = 1;
 			fade->GradientStops->Append(clear);
 			fade->GradientStops->Append(solid);
-			auto edge = ref new Windows::UI::Xaml::Shapes::Rectangle();
-			edge->Fill = fade;
+			// A Border, not a Rectangle: a shape asks for the whole page height and stretches this
+			// top-aligned frame (and its fade) down over the ambient art
+			auto edge = ref new Border();
+			edge->Background = fade;
 			frame->Children->Append(edge);
 			auto page = ref new Grid();
 			page->Children->Append(ambient);
