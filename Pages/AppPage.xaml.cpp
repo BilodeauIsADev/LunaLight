@@ -1253,7 +1253,7 @@ void AppPage::PresentHeroArtwork(Windows::UI::Xaml::Media::ImageSource^ source, 
 	// The ambient copy behind wide art waits for the banner, so a failed banner never shows it
 	auto parts = dynamic_cast<Grid^>(layer);
 	if (parts != nullptr) {
-		for (auto part : parts->Children) {
+		for (UIElement^ part : parts->Children) {
 			if (dynamic_cast<Image^>(part) != nullptr) part->Opacity = 1;
 		}
 	}
