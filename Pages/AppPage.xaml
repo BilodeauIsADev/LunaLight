@@ -38,7 +38,19 @@
         <Grid x:Name="ScaledRoot" local:OrbitMotion.Kind="Page">
             <!-- Wide artwork for the highlighted game, faded into the page behind the controls -->
             <Grid IsHitTestVisible="False">
+                <!-- The game's wide art, blurred and dimmed, behind the game row -->
+                <Image x:Name="AmbientArt" Stretch="UniformToFill" Opacity="0" />
+                <Rectangle Fill="#94000000" />
                 <Grid x:Name="HeroArtLayers" Opacity="0.9" />
+                <!-- Fades the banner's bottom edge into the ambient art; sized in ShowAmbientArt -->
+                <Border x:Name="BannerFade" VerticalAlignment="Top" Height="0">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                            <GradientStop Color="#00000000" Offset="0.55" />
+                            <GradientStop Color="#94000000" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
                 <!-- Soft left edge so the art never shows a hard seam -->
                 <Rectangle>
                     <Rectangle.Fill>

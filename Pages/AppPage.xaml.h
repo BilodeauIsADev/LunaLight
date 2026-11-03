@@ -44,6 +44,7 @@ namespace moonlight_xbox_dx
 		void MoveLetterFocus(int delta);
 		void PresentHeroArtwork(Windows::UI::Xaml::Media::ImageSource^ source, uint64_t request, bool logo);
 		void HeroArtworkFailed(uint64_t request, bool logo);
+		void ShowAmbientArt(Windows::UI::Xaml::Media::Imaging::BitmapImage^ banner);
 		void StopHeroMotion();
 		Windows::Foundation::EventRegistrationToken m_appsChangedToken;
 		Windows::Foundation::EventRegistrationToken m_back_cookie;

@@ -1128,6 +1128,7 @@ void AppPage::LoadHeroImage(Platform::String^ path, bool logo) {
 		for (auto child : layers->Children) OrbitMotion::Stop(child);
 		layers->Children->Clear();
 		if (logo) HeroTitle->Visibility = Windows::UI::Xaml::Visibility::Visible;
+		else ShowAmbientArt(nullptr);
 		return;
 	}
 	uint64_t request;
@@ -1158,7 +1159,6 @@ void AppPage::LoadHeroImage(Platform::String^ path, bool logo) {
 		if (logo) m_pendingLogo = image;
 		else m_pendingArtwork = image;
 		UIElement^ layer = image;
-		Windows::UI::Xaml::Media::Imaging::BitmapImage^ ambientSource = nullptr;
 		if (cover) {
 			// The cover sits on the right with its own soft left edge, like the old hero
 			auto frame = ref new Grid();
@@ -1180,64 +1180,11 @@ void AppPage::LoadHeroImage(Platform::String^ path, bool logo) {
 			edge->Fill = fade;
 			frame->Children->Append(edge);
 			layer = frame;
-		} else if (!logo) {
-			// Behind the banner, the same art decoded tiny and stretched over the page: a cheap
-			// blur that puts the game row on the game's colours instead of black
-			ambientSource = ref new Windows::UI::Xaml::Media::Imaging::BitmapImage();
-			ambientSource->DecodePixelWidth = 40;
-			auto ambient = ref new Image();
-			ambient->Stretch = Windows::UI::Xaml::Media::Stretch::UniformToFill;
-			ambient->Opacity = 0; // shown with the banner in PresentHeroArtwork
-			ambient->Source = ambientSource;
-			auto dim = ref new Windows::UI::Xaml::Shapes::Rectangle();
-			dim->Fill = ref new Windows::UI::Xaml::Media::SolidColorBrush(Windows::UI::ColorHelper::FromArgb(148, 0, 0, 0));
-			// Black behind the banner, so its faded bottom edge meets the ambient art lower down
-			auto under = ref new Windows::UI::Xaml::Media::LinearGradientBrush();
-			under->StartPoint = Windows::Foundation::Point(0, 0);
-			under->EndPoint = Windows::Foundation::Point(0, 1);
-			auto underSolid = ref new Windows::UI::Xaml::Media::GradientStop();
-			underSolid->Color = Windows::UI::ColorHelper::FromArgb(255, 0, 0, 0);
-			underSolid->Offset = 0.5;
-			auto underClear = ref new Windows::UI::Xaml::Media::GradientStop();
-			underClear->Color = Windows::UI::ColorHelper::FromArgb(0, 0, 0, 0);
-			underClear->Offset = 0.75;
-			under->GradientStops->Append(underSolid);
-			under->GradientStops->Append(underClear);
-			auto underRect = ref new Windows::UI::Xaml::Shapes::Rectangle();
-			underRect->Fill = under;
-
-			// The banner keeps its whole frame across the top, its bottom edge fading to black
-			auto frame = ref new Grid();
-			frame->VerticalAlignment = Windows::UI::Xaml::VerticalAlignment::Top;
-			frame->Children->Append(image);
-			auto fade = ref new Windows::UI::Xaml::Media::LinearGradientBrush();
-			fade->StartPoint = Windows::Foundation::Point(0, 0);
-			fade->EndPoint = Windows::Foundation::Point(0, 1);
-			auto clear = ref new Windows::UI::Xaml::Media::GradientStop();
-			clear->Color = Windows::UI::ColorHelper::FromArgb(0, 0, 0, 0);
-			clear->Offset = 0.55;
-			auto solid = ref new Windows::UI::Xaml::Media::GradientStop();
-			solid->Color = Windows::UI::ColorHelper::FromArgb(255, 0, 0, 0);
-			solid->Offset = 1;
-			fade->GradientStops->Append(clear);
-			fade->GradientStops->Append(solid);
-			// A Border, not a Rectangle: a shape asks for the whole page height and stretches this
-			// top-aligned frame (and its fade) down over the ambient art
-			auto edge = ref new Border();
-			edge->Background = fade;
-			frame->Children->Append(edge);
-			auto page = ref new Grid();
-			page->Children->Append(ambient);
-			page->Children->Append(dim);
-			page->Children->Append(underRect);
-			page->Children->Append(frame);
-			layer = page;
 		}
 		// Decode into an invisible, live Image before presenting it. Title text
 		// remains visible until the logo has successfully opened.
 		layers->Children->Append(layer);
 		source->UriSource = ref new Windows::Foundation::Uri(ref new Platform::String(address.c_str()));
-		if (ambientSource != nullptr) ambientSource->UriSource = source->UriSource;
 	} catch (Platform::Exception^) {
 		HeroArtworkFailed(request, logo);
 	}
@@ -1252,13 +1199,7 @@ void AppPage::PresentHeroArtwork(Windows::UI::Xaml::Media::ImageSource^ source, 
 	image->Opacity = 1;
 	if (logo) HeroTitle->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
 	auto layer = HeroLayerFor(image, logo);
-	// The ambient copy behind wide art waits for the banner, so a failed banner never shows it
-	auto parts = dynamic_cast<Grid^>(layer);
-	if (parts != nullptr) {
-		for (UIElement^ part : parts->Children) {
-			if (dynamic_cast<Image^>(part) != nullptr) part->Opacity = 1;
-		}
-	}
+	if (!logo) ShowAmbientArt(m_artworkIsCover ? nullptr : dynamic_cast<Windows::UI::Xaml::Media::Imaging::BitmapImage^>(source));
 	OrbitMotion::FadeArtwork(logo ? HeroLogoLayers : HeroArtLayers, layer);
 }
 
@@ -1297,6 +1238,24 @@ void AppPage::HeroArtworkFailed(uint64_t request, bool logo) {
 	for (auto child : layers->Children) OrbitMotion::Stop(child);
 	layers->Children->Clear();
 	if (logo) HeroTitle->Visibility = Windows::UI::Xaml::Visibility::Visible;
+	else ShowAmbientArt(nullptr);
+}
+
+// Wide art also fills the page behind the game row, decoded tiny as a cheap blur, and the
+// banner's bottom edge fades into it. nullptr hides both (cover art or no art).
+void AppPage::ShowAmbientArt(Windows::UI::Xaml::Media::Imaging::BitmapImage^ banner) {
+	if (banner == nullptr || banner->PixelWidth <= 0) {
+		AmbientArt->Opacity = 0;
+		BannerFade->Height = 0;
+		return;
+	}
+	auto blurred = ref new Windows::UI::Xaml::Media::Imaging::BitmapImage();
+	blurred->DecodePixelWidth = 40;
+	blurred->UriSource = banner->UriSource;
+	AmbientArt->Source = blurred;
+	AmbientArt->Opacity = 1;
+	// The banner is drawn full width, top aligned, at its own aspect ratio
+	BannerFade->Height = HeroArtLayers->ActualWidth * banner->PixelHeight / banner->PixelWidth;
 }
 
 void AppPage::StopHeroMotion() {
@@ -1315,5 +1274,6 @@ void AppPage::StopHeroMotion() {
 	for (auto child : HeroLogoLayers->Children) OrbitMotion::Stop(child);
 	HeroArtLayers->Children->Clear();
 	HeroLogoLayers->Children->Clear();
+	ShowAmbientArt(nullptr);
 	HeroTitle->Visibility = Windows::UI::Xaml::Visibility::Visible;
 }
