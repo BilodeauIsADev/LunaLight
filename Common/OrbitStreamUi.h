@@ -12,7 +12,7 @@ namespace moonlight_xbox_dx {
 namespace OrbitStreamUi {
 
 	// Bitrate slider stops: fine where most streams sit, coarse near the maximum.
-	const int MaxBitrateStep = 47;
+	const int MaxBitrateStep = 51;
 
 	inline int BitrateForStep(int step) {
 		int kbps = 5000;

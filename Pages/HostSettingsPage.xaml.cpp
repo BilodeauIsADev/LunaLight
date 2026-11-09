@@ -464,6 +464,27 @@ void HostSettingsPage::Page_GotFocus(Platform::Object^ sender, Windows::UI::Xaml
 	}
 }
 
+void HostSettingsPage::CodecComboBox_SelectionChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::SelectionChangedEventArgs^ e)
+{
+	if (e->AddedItems->Size == 0) return;
+	auto selectedCodec = (Platform::String^)e->AddedItems->GetAt(0);
+
+	if (selectedCodec != host->VideoCodec) {
+		// Default to a new bitrate if a new codec was chosen
+		host->Bitrate = getDefaultBitrate(host->Resolution->Width, host->Resolution->Height, host->FPS, selectedCodec);
+	}
+
+	if (selectedCodec == "PyroWave 4:2:0" || selectedCodec == "PyroWave 4:4:4") {
+		CodecDescPyroWave->Visibility = Windows::UI::Xaml::Visibility::Visible;
+		CodecDesc->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+	} else {
+		CodecDescPyroWave->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+		CodecDesc->Visibility = Windows::UI::Xaml::Visibility::Visible;
+	}
+
+	host->VideoCodec = selectedCodec;
+}
+
 void HostSettingsPage::OnUnloaded(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
 {
 	auto navigation = Windows::UI::Core::SystemNavigationManager::GetForCurrentView();

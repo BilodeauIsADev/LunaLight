@@ -348,6 +348,16 @@ void StatsRenderer::SetVisible(bool visible) {
 	m_visible = visible;
 }
 
+bool StatsRenderer::GetVisible() {
+	std::lock_guard<std::mutex> lock(m_mutex);
+	return m_visible;
+}
+
+void StatsRenderer::SetVisible(bool visible) {
+	std::lock_guard<std::mutex> lock(m_mutex);
+	m_visible = visible;
+}
+
 void StatsRenderer::ToggleVisible() {
 	std::lock_guard<std::mutex> lock(m_mutex);
 	m_visible = !m_visible;

@@ -346,6 +346,16 @@ std::string moonlight_xbox_dx::ApplicationState::Get_Broadcast_IP(std::string ip
 }
 
 std::pair<std::string, int> moonlight_xbox_dx::ApplicationState::Split_IP_Address(const std::string& address, char deliminator) {
+	if (deliminator == ':') {
+		// host:port splitting must understand [IPv6]:port and bare IPv6 literals.
+		std::string host;
+		int port = 0;
+		if (!Utils::ParseHostPort(address, host, port)) {
+			throw std::invalid_argument("Invalid host or port format");
+		}
+		return { host, port };
+	}
+
 	std::stringstream ss(address);
 	std::string ip_address;
 	std::string port_str;

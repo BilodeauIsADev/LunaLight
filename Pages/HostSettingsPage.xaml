@@ -156,7 +156,7 @@
                                                 <StackPanel Spacing="2">
                                                     <TextBlock x:Name="BitrateText" FontSize="12" Foreground="{StaticResource OrbitTextSecondaryBrush}" HorizontalAlignment="Right"/>
                                                     <!-- Positions in OrbitStreamUi::BitrateForStep; Maximum is MaxBitrateStep -->
-                                                    <Slider x:Name="BitrateSlider" Minimum="0" Maximum="47" SmallChange="1" StepFrequency="1" IsThumbToolTipEnabled="False" ValueChanged="BitrateSlider_ValueChanged" XYFocusLeft="{x:Bind VideoSectionButton}" AutomationProperties.Name="Bitrate"/>
+                                                    <Slider x:Name="BitrateSlider" Minimum="0" Maximum="51" SmallChange="1" StepFrequency="1" IsThumbToolTipEnabled="False" ValueChanged="BitrateSlider_ValueChanged" XYFocusLeft="{x:Bind VideoSectionButton}" AutomationProperties.Name="Bitrate"/>
                                                 </StackPanel>
                                             </Grid>
                                         </Grid>

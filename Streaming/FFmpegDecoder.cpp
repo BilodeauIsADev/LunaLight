@@ -313,9 +313,8 @@ namespace moonlight_xbox_dx {
 
     // Called by the VideoDec thread
 	int FFMpegDecoder::SubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
-		// moonlight-common-c owns this thread and calls us with CAPABILITY_DIRECT_SUBMIT, so
-		// this runs on the receive thread and there is no thread entry point of ours to name
-		// it from. SetThreadName allocates and prepends to a global list on every call with
+		// moonlight-common-c owns this VideoDec thread, so there is no thread entry point
+		// of ours to name it from. SetThreadName allocates and prepends to a global list on every call with
 		// no dedup, so it must happen exactly once per thread rather than once per frame.
 		static thread_local bool threadNamed = false;
 		if (!threadNamed) {
@@ -486,7 +485,10 @@ namespace moonlight_xbox_dx {
 		decoder_callbacks_sdl.setup = initCallback;
 		decoder_callbacks_sdl.cleanup = cleanupCallback;
 		decoder_callbacks_sdl.submitDecodeUnit = submitDecodeUnit;
-		decoder_callbacks_sdl.capabilities = CAPABILITY_DIRECT_SUBMIT;
+		// This used to run as CAPABILITY_DIRECT_SUBMIT but this combines the decoder time with
+		// the UDP receive/reassembly time. If we leave it out, decode gets a new thread and UDP
+		// doesn't have to wait for decode.
+		decoder_callbacks_sdl.capabilities = 0;
 		// Intra refresh repairs the picture in a column that sweeps across the
 		// screen, so after a decode error the damage can stay visible for seconds
 		// in still scenes. Without it the host sends a full IDR frame instead.

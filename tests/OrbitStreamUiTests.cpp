@@ -22,7 +22,7 @@ static void CheckText(const std::string& actual, const char* expected, const cha
 int main() {
 	Check(BitrateForStep(0) == 5000, "Bitrate slider starts at the minimum");
 	Check(BitrateForStep(3) == 20000, "The 1080p60 default is a stop");
-	Check(BitrateForStep(MaxBitrateStep) == 800000, "Bitrate slider ends at the maximum");
+	Check(BitrateForStep(MaxBitrateStep) == 1000000, "Bitrate slider ends at the maximum");
 	for (int step = 0; step <= MaxBitrateStep; ++step) {
 		Check(NearestBitrateStep(BitrateForStep(step)) == step, "Every stop maps back to itself");
 	}
