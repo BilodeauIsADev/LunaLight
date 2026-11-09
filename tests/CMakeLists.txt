@@ -56,5 +56,7 @@ target_compile_features(pyrowave_framing_tests PRIVATE cxx_std_17)
 target_include_directories(pyrowave_framing_tests PRIVATE
     ../Streaming/PyroWave
     "${PYROWAVE_ROOT}/metal"
+    # Tracy.hpp only: its macros are no-ops without TRACY_ENABLE
+    ../third_party/tracy-xbox/public
 )
 add_test(NAME pyrowave_framing COMMAND pyrowave_framing_tests)
